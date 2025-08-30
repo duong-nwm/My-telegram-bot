@@ -12,7 +12,7 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Cont
 BOT_TOKEN = "8269822718:AAEz08EJ2AamKkwDU5TolzY9JKzLL4XuPgE"
 ASIA_API_KEY = "7jkmE5NM2VS6GqJ9pzlI"
 MAILTM_URL = "https://api.mail.tm"
-FB_ACCESS_TOKEN = "YOUR_FB_GRAPH_API_TOKEN"  # Graph API token
+FB_ACCESS_TOKEN = "YOUR_FB_GRAPH_API_TOKEN"
 
 # ===============================
 # DATA USER
@@ -91,17 +91,22 @@ async def auto_check_mailtm(app: Application):
         await asyncio.sleep(5)
 
 # ===============================
-# START COMMAND
+# MENU KEYBOARD
 # ===============================
-async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
+def main_menu_keyboard():
+    return InlineKeyboardMarkup([
         [InlineKeyboardButton("📧 Tạo TempMail.Asia", callback_data="asia"),
          InlineKeyboardButton("📮 Tạo Mail.tm", callback_data="mailtm")],
         [InlineKeyboardButton("🔄 Tự động lấy OTP", callback_data="auto_otp"),
          InlineKeyboardButton("📲 Lấy 2FA", callback_data="get_2fa")],
         [InlineKeyboardButton("✅ Check live UID FB", callback_data="check_fb_uid")]
-    ]
-    await update.message.reply_text("Chọn hành động:", reply_markup=InlineKeyboardMarkup(keyboard))
+    ])
+
+# ===============================
+# START COMMAND
+# ===============================
+async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Chọn hành động:", reply_markup=main_menu_keyboard())
 
 # ===============================
 # CALLBACK HANDLER
@@ -116,43 +121,46 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         email = create_asia_email()
         if email:
             user_data[user_id] = {"asia_email": email}
-            await query.edit_message_text(f"✅ Email TempMail.Asia:\n`{email}`", parse_mode="Markdown")
+            await query.message.reply_text(f"✅ Email TempMail.Asia:\n`{email}`", parse_mode="Markdown",
+                                         reply_markup=main_menu_keyboard())
         else:
-            await query.edit_message_text("❌ Lỗi tạo TempMail.Asia")
+            await query.message.reply_text("❌ Lỗi tạo TempMail.Asia", reply_markup=main_menu_keyboard())
 
     # --- Tạo Mail.tm ---
     elif query.data == "mailtm":
         email, token = create_mailtm_account()
         if email:
             user_data[user_id] = {"mailtm_email": email, "mailtm_token": token}
-            await query.edit_message_text(f"✅ Email Mail.tm:\n`{email}`\n(Đang auto check inbox)", parse_mode="Markdown")
+            await query.message.reply_text(f"✅ Email Mail.tm:\n`{email}`\n(Đang auto check inbox)", parse_mode="Markdown",
+                                         reply_markup=main_menu_keyboard())
         else:
-            await query.edit_message_text("❌ Lỗi tạo Mail.tm")
+            await query.message.reply_text("❌ Lỗi tạo Mail.tm", reply_markup=main_menu_keyboard())
 
     # --- Tự động lấy OTP ---
     elif query.data == "auto_otp":
         if user_data.get(user_id):
             user_data_checking[user_id] = True
-            await query.edit_message_text("🔄 Bắt đầu tự động lấy OTP từ email...")
+            await query.message.reply_text("🔄 Bắt đầu tự động lấy OTP từ email...", reply_markup=main_menu_keyboard())
         else:
-            await query.edit_message_text("❌ Chưa có email để lấy OTP")
+            await query.message.reply_text("❌ Chưa có email để lấy OTP", reply_markup=main_menu_keyboard())
 
     # --- Lấy 2FA ---
     elif query.data == "get_2fa":
         email = user_data.get(user_id, {}).get("asia_email") or user_data.get(user_id, {}).get("mailtm_email")
         if not email:
-            await query.edit_message_text("❌ Chưa có email để lấy 2FA.")
+            await query.message.reply_text("❌ Chưa có email để lấy 2FA.", reply_markup=main_menu_keyboard())
             return
         otp = get_2fa_lay2fa(email)
         if otp:
-            await query.edit_message_text(f"🔑 OTP 2FA:\n`{otp}`", parse_mode="Markdown")
+            await query.message.reply_text(f"🔑 OTP 2FA:\n`{otp}`", parse_mode="Markdown",
+                                         reply_markup=main_menu_keyboard())
         else:
-            await query.edit_message_text("❌ Chưa có mã 2FA mới.")
+            await query.message.reply_text("❌ Chưa có mã 2FA mới.", reply_markup=main_menu_keyboard())
 
     # --- Check live UID FB ---
     elif query.data == "check_fb_uid":
         awaiting_uid[user_id] = True
-        await query.edit_message_text("🔄 Nhập UID Facebook cần check:")
+        await query.message.reply_text("🔄 Nhập UID Facebook cần check:", reply_markup=main_menu_keyboard())
 
 # ===============================
 # MESSAGE HANDLER (UID FB)
@@ -168,13 +176,13 @@ async def uid_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             if resp.status_code == 200:
                 data = resp.json()
                 if 'error' in data:
-                    await update.message.reply_text(f"❌ UID {uid} không tồn tại hoặc bị khoá")
+                    await update.message.reply_text(f"❌ UID {uid} không tồn tại hoặc bị khoá", reply_markup=main_menu_keyboard())
                 else:
-                    await update.message.reply_text(f"✅ UID {uid} còn sống\nTên: {data.get('name')}")
+                    await update.message.reply_text(f"✅ UID {uid} còn sống\nTên: {data.get('name')}", reply_markup=main_menu_keyboard())
             else:
-                await update.message.reply_text(f"❌ Không lấy được thông tin UID {uid}")
+                await update.message.reply_text(f"❌ Không lấy được thông tin UID {uid}", reply_markup=main_menu_keyboard())
         except Exception as e:
-            await update.message.reply_text(f"❌ Lỗi: {e}")
+            await update.message.reply_text(f"❌ Lỗi: {e}", reply_markup=main_menu_keyboard())
 
 # ===============================
 # MAIN
@@ -187,7 +195,6 @@ def main():
 
     async def on_startup(_):
         asyncio.create_task(auto_check_mailtm(app))
-
     app.post_init = on_startup
     print("🤖 Bot đang chạy...")
     app.run_polling()
